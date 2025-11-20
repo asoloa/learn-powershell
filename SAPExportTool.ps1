@@ -54,6 +54,9 @@ Function Generate-DataSheet {
     ##### Generate Calendar Sheet
     $outCalendarSheet = $outputFile.Worksheets.Add()
     $outCalendarSheet.Name = "Calendar Sheet"
+    $outCalendarSheet.Columns.ColumnWidth = 3
+    $outCalendarSheet.Range("B1").ColumnWidth = 30
+    
 
     # TODO: Handle overflowing dates (dates from data sheet include previous and/or next months
     # $earliestDate = $excel.WorksheetFunction.Min($outDataSheet.Range("C:C"))
@@ -77,11 +80,11 @@ Function Generate-DataSheet {
     $dateRange = $outCalendarSheet.Range("C3").Resize(1, $calendarDays)
 
     $dateRange.NumberFormat = "dd"
-    $dateRange.Value2       = $dates2D
+    $dateRange.Value2 = $dates2D
     $dateRange.HorizontalAlignment = -4108   # xlCenter
-    $dateRange.VerticalAlignment   = -4108   # xlCenter
-    $dateRange.Interior.Color      = 0xD5E2FB
-    $dateRange.Borders.LineStyle   = 1       # xlContinuous
+    $dateRange.VerticalAlignment = -4108   # xlCenter
+    $dateRange.Interior.Color = 0xD5E2FB
+    $dateRange.Borders.LineStyle = 1       # xlContinuous
     $dateRange.ColumnWidth = 5
     $excel.ActiveWindow.DisplayGridlines = $false
 

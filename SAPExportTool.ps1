@@ -55,10 +55,35 @@ Function Generate-DataSheet {
     $outCalendarSheet = $outputFile.Worksheets.Add()
     $outCalendarSheet.Name = "Calendar Sheet"
 
-    $earliestDate = $excel.WorksheetFunction.Min($outDataSheet.Range("C:C"))
+    # TODO: Handle overflowing dates (dates from data sheet include previous and/or next months
+    # $earliestDate = $excel.WorksheetFunction.Min($outDataSheet.Range("C:C"))
     $latestDate = $excel.WorksheetFunction.Max($outDataSheet.Range("C:C"))
-    $calendarDays = [DateTime]::DaysInMonth([DateTime]::FromOADate($latestDate).Year, [DateTime]::FromOADate($latestDate).Month)
-    Write-Host "Calendar Days:" $calendarDays
+    $latestDate = [DateTime]::FromOADate($latestDate)
+    $year  = $latestDate.Year
+    $month = $latestDate.Month
+    $calendarDays = [DateTime]::DaysInMonth($year, $month)
+
+    $dates = New-Object DateTime[] $calendarDays
+    $dates = for ($i = 1; $i -le $calendarDays; $i++) {
+        [datetime]::new($year, $month, $i)
+    }
+
+    # Excel needs a 2D array: 1 row × N columns
+    $dates2D = New-Object 'object[,]' 1, $calendarDays
+    for ($i = 0; $i -lt $calendarDays; $i++) {
+        $dates2D[0, $i] = $dates[$i]
+    }
+
+    $dateRange = $outCalendarSheet.Range("C3").Resize(1, $calendarDays)
+
+    $dateRange.NumberFormat = "dd"
+    $dateRange.Value2       = $dates2D
+    $dateRange.HorizontalAlignment = -4108   # xlCenter
+    $dateRange.VerticalAlignment   = -4108   # xlCenter
+    $dateRange.Interior.Color      = 0xD5E2FB
+    $dateRange.Borders.LineStyle   = 1       # xlContinuous
+    $dateRange.ColumnWidth = 5
+    $excel.ActiveWindow.DisplayGridlines = $false
 
     ##### Save and exit files. Cleanup.
     $outputFile.SaveAs($PWD.Path + "\extracted_$(Get-Date -Format "yyyyMMdd-HHmmss").xlsx")

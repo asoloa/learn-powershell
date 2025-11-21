@@ -57,8 +57,7 @@ Function Generate-DataSheet {
     $outCalendarSheet.Columns.ColumnWidth = 3
     $outCalendarSheet.Range("B1").ColumnWidth = 30
     
-
-    # TODO: Handle overflowing dates (dates from data sheet include previous and/or next months
+    # TODO: Handle overflowing dates (dates from data sheet include previous and/or next months)
     # $earliestDate = $excel.WorksheetFunction.Min($outDataSheet.Range("C:C"))
     $latestDate = $excel.WorksheetFunction.Max($outDataSheet.Range("C:C"))
     $latestDate = [DateTime]::FromOADate($latestDate)
@@ -66,26 +65,34 @@ Function Generate-DataSheet {
     $month = $latestDate.Month
     $calendarDays = [DateTime]::DaysInMonth($year, $month)
 
-    $dates = New-Object DateTime[] $calendarDays
-    $dates = for ($i = 1; $i -le $calendarDays; $i++) {
-        [datetime]::new($year, $month, $i)
-    }
-
+    # Create an array that holds the month's days
     # Excel needs a 2D array: 1 row × N columns
     $dates2D = New-Object 'object[,]' 1, $calendarDays
     for ($i = 0; $i -lt $calendarDays; $i++) {
-        $dates2D[0, $i] = $dates[$i]
+        $dates2D[0, $i] = [datetime]::new($year, $month, $i + 1)
     }
 
-    $dateRange = $outCalendarSheet.Range("C3").Resize(1, $calendarDays)
+    # Set formatting of Month-Year header
+    $MYHeaderRange = $outCalendarSheet.Range("C2").Resize(1, $calendarDays)
+    $MYHeaderRange.Merge()
+    $MYHeaderRange.NumberFormat = "@"
+    $MYHeaderRange.Value = ([CultureInfo]::InvariantCulture).DateTimeFormat.GetMonthName($month).ToUpper() + " " + $year
+    $MYHeaderRange.Interior.Color = 0x83A9F1
+    $MYHeaderRange.Font.Bold = $true
 
-    $dateRange.NumberFormat = "dd"
-    $dateRange.Value2 = $dates2D
-    $dateRange.HorizontalAlignment = -4108   # xlCenter
-    $dateRange.VerticalAlignment = -4108   # xlCenter
-    $dateRange.Interior.Color = 0xD5E2FB
-    $dateRange.Borders.LineStyle = 1       # xlContinuous
-    $dateRange.ColumnWidth = 5
+    # Set common formatting of Month-Year header and Days' cells
+    $MYHeaderRange = $MYHeaderRange.Resize(2, $calendarDays)
+    $MYHeaderRange.ColumnWidth = 5
+    $MYHeaderRange.HorizontalAlignment = -4108 # xlCenter
+    $MYHeaderRange.VerticalAlignment = -4108 # xlCenter
+    $MYHeaderRange.Borders.LineStyle = 1 # xlContinuous
+
+    # Set formatting of Days' cells
+    $daysRange = $outCalendarSheet.Range("C3").Resize(1, $calendarDays)
+    $daysRange.NumberFormat = "dd"
+    $daysRange.Value2 = $dates2D  
+    $daysRange.Interior.Color = 0xD5E2FB
+
     $excel.ActiveWindow.DisplayGridlines = $false
 
     ##### Save and exit files. Cleanup.

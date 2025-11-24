@@ -19,6 +19,50 @@
     return
 }
 
+Function DataAsString-Optimized {
+    param(
+        [string]$wsName,
+        [object]$workbook
+    )
+
+    $data_ws = $workbook.Sheets.Item($wsName)
+    $lastRow = $data_ws.Cells($data_ws.Rows.Count, "G").End(3).Row  # 3 = xlUp
+    $usedRng = $data_ws.Range("A1:G$lastRow")
+    $arr = $usedRng.Value2
+
+    # Dimensions (PowerShell arrays from Excel are 1-based, VB-style)
+    $rowCount = $arr.GetUpperBound(0)
+    $colCount = $arr.GetUpperBound(1)
+
+    $rowData = New-Object string[] ($colCount)
+
+    # Use a StringBuilder for performance
+    $sb = New-Object System.Text.StringBuilder
+
+    for ($row = 1; $row -le $rowCount; $row++) {
+        for ($col = 1; $col -le $colCount; $col++) {
+            $val = $arr[$row, $col]
+            # If cell in a row is empty, the current row is a leave entry (see [Data Sheet])
+            # For uniformity and ease of pattern-matching, we set the current element to the previous element's value
+            if ($null -eq $val -or $val -eq "") {
+                if ($col -gt 1) {
+                    # Enclosing "$col - 1" in parentheses is necessary to properly evaluate the arithmetic operation
+                    # Not doing so will result to "Method invocation failed because [System.Object[]] does not contain a method named 'op_Subtraction'." error.
+                    $val = $arr[$row, ($col - 1)]
+                }
+                else {
+                    $val = ""
+                }
+            }
+            $arr[$row, $col] = $val
+            $rowData[$col - 1] = $val
+        }
+        # Join row values with tabs, append newline
+        [void]$sb.AppendLine(($rowData -join "`t"))
+    }
+    return $sb.ToString()
+}
+
 Function Generate-DataSheet {
     param (
         [Parameter(Mandatory=$true)]
@@ -50,6 +94,8 @@ Function Generate-DataSheet {
     $outDataSheet.Range("A:G").Columns.AutoFit()
     $outDataSheet.Range("A:G").HorizontalAlignment = -4108
     $outDataSheet.Protect | Out-Null
+
+    $dataString =  $(DataAsString-Optimized -wsName $outDataSheet.Name -workbook $outputFile)
 
     ##### Generate Calendar Sheet
     $outCalendarSheet = $outputFile.Worksheets.Add()
@@ -96,7 +142,7 @@ Function Generate-DataSheet {
     $excel.ActiveWindow.DisplayGridlines = $false
 
     ##### Save and exit files. Cleanup.
-    $outputFile.SaveAs($PWD.Path + "\extracted_$(Get-Date -Format "yyyyMMdd-HHmmss").xlsx")
+    $outputFile.SaveAs($PWD.Path + "\extracted\$(Get-Date -Format "yyyyMMdd-HHmmss").xlsx")
     $outputFile.Close()
     $inputFile.Close()
     $excel.Quit()

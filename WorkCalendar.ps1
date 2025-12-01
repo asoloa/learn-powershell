@@ -23,8 +23,8 @@ Function Get-InputFile {
 
 Function DataAsString {
     param(
-        [string]$wsName,
-        [object]$workbook
+        [Parameter(Mandatory)] [string]$wsName,
+        [Parameter(Mandatory)] [object]$workbook
     )
 
     $data_ws = $workbook.Sheets.Item($wsName)
@@ -70,10 +70,10 @@ Function DataAsString {
 
 function Extract-EmployeeDetails {
     param(
-        [string]$dataString,
-        [int]$lastRow,
-        [int]$calendarDays,
-        [object]$workbook
+        [Parameter(Mandatory)] [string]$dataString,
+        [Parameter(Mandatory)] [int]$lastRow,
+        [Parameter(Mandatory)] [int]$calendarDays,
+        [Parameter(Mandatory)] [object]$workbook
     )
 
     $reportWs = $workbook.Sheets.Item("Calendar Sheet")
@@ -207,8 +207,8 @@ function Extract-EmployeeDetails {
 
 function Set-LeaveFormatting {
     param(
-        [object]$worksheet,
-        [object]$lastCell
+        [Parameter(Mandatory)] [object]$worksheet,
+        [Parameter(Mandatory)] [object]$lastCell
     )
 
     # Target range: C4 : lastCell
@@ -238,9 +238,9 @@ function Get-ColumnLetter([int]$colIndex) {
 
 function Get-WeekendRange {
     param(
-        [object]$worksheet,
-        [object]$cellIterator,
-        [int]$lastRow
+        [Parameter(Mandatory)] [object]$worksheet,
+        [Parameter(Mandatory)] [object]$cellIterator,
+        [Parameter(Mandatory)] [int]$lastRow
     )
 
     # Start cell: one row below the header
@@ -259,8 +259,8 @@ function Get-WeekendRange {
 
 function Shade-Weekends {
     param(
-        [object]$worksheet,
-        [int]$calendarDays
+        [Parameter(Mandatory)] [object]$worksheet,
+        [Parameter(Mandatory)] [int]$calendarDays
     )
 
     $cellIterator = $worksheet.Range("C3")
@@ -283,8 +283,7 @@ function Shade-Weekends {
 
 Function Generate-DataSheet {
     param (
-        [Parameter(Mandatory=$true)]
-        [string]$excelInput
+        [Parameter(Mandatory)] [string]$excelInput
     )
 
     $excel = New-Object -ComObject Excel.Application
@@ -303,13 +302,13 @@ Function Generate-DataSheet {
 
     foreach ($col in @("A", "B", "C", "E", "F", "G", "H")) {
         $inDataSheet.Range("$($col)2", "$($col)$($lastUsedRow)").Copy() | Out-Null
-        $destCell.PasteSpecial(-4163) # xlPasteValues = -4163
+        $destCell.PasteSpecial(-4163) | Out-Null # xlPasteValues = -4163 
         $destCell = $destCell.Offset(0, 1)
     }
 
     $outDataSheet.Range("C:C").NumberFormat = "mm/dd/yyyy"
     $outDataSheet.Range("F:F").NumberFormat = "#0.000"
-    $outDataSheet.Range("A:G").Columns.AutoFit()
+    $outDataSheet.Range("A:G").Columns.AutoFit() | Out-Null
     $outDataSheet.Range("A:G").HorizontalAlignment = -4108
 
     $dataString =  $(DataAsString -wsName $outDataSheet.Name -workbook $outputFile)
@@ -331,7 +330,7 @@ Function Generate-DataSheet {
     # Excel needs a 2D array: 1 row × N columns
     $dates2D = New-Object 'object[,]' 1, $calendarDays
     for ($i = 0; $i -lt $calendarDays; $i++) {
-        $dates2D[0, $i] = [DateTime]::new($year, $month, $i + 1)
+        $dates2D[0, $i] = [DateTime]::New($year, $month, $i + 1)
     }
 
     # Set formatting of Month-Year header
@@ -367,12 +366,7 @@ Function Generate-DataSheet {
     $inputFile.Close()
     $excel.Quit()
 
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($indataSheet) | Out-Null
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($outdataSheet) | Out-Null
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($outputFile) | Out-Null
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($inputFile) | Out-Null
     [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
-    # Remove-Variable excel, inputFile, outputFile, inDataSheet, outDataSheet, destCell, lastUsedRow
 }
 
 # Main Block
@@ -380,3 +374,5 @@ $inputFile = Get-InputFile
 if ($inputFile) {
     Generate-DataSheet -ExcelInput $inputFile
 }
+[GC]::Collect()
+[GC]::WaitForPendingFinalizers()

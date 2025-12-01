@@ -21,7 +21,7 @@ Function Get-InputFile {
     return
 }
 
-Function DataAsString {
+Function Get-EmployeeData {
     param(
         [Parameter(Mandatory)] [string]$wsName,
         [Parameter(Mandatory)] [object]$workbook
@@ -68,7 +68,7 @@ Function DataAsString {
     return $sb.ToString()
 }
 
-function Extract-EmployeeDetails {
+function Populate-Calendar {
     param(
         [Parameter(Mandatory)] [string]$dataString,
         [Parameter(Mandatory)] [int]$lastRow,
@@ -136,7 +136,7 @@ function Extract-EmployeeDetails {
 
     # Allocate output array (1-based to match Excel)
     $outputArr = New-Object 'object[,]' $totalRows, ($calendarDays + 1)
-    $rowType   = New-Object 'int[]' $totalRows  # 0=spacer,1=header,2=project row
+    $rowType   = New-Object 'int[]' $totalRows  # 0 = spacer/blank, 1 = header, 2 = project row
     $rowOut = 0
 
     foreach ($emp in $employeeCollection.Keys) {
@@ -181,6 +181,7 @@ function Extract-EmployeeDetails {
     $range.HorizontalAlignment = -4108   # xlCenter
     $range.VerticalAlignment   = -4108   # xlCenter
 
+    # Format rows based on type: 0 = spacer/blank, 1 = header, 2 = project row
     for ($rw = 0; $rw -lt $totalRows; $rw++) {
         switch ($rowType[$rw]) {
             1 {  # EMPLOYEE HEADER
@@ -311,7 +312,7 @@ Function Generate-DataSheet {
     $outDataSheet.Range("A:G").Columns.AutoFit() | Out-Null
     $outDataSheet.Range("A:G").HorizontalAlignment = -4108
 
-    $dataString =  $(DataAsString -wsName $outDataSheet.Name -workbook $outputFile)
+    $dataString =  $(Get-EmployeeData -wsName $outDataSheet.Name -workbook $outputFile)
 
     ##### Generate Calendar Sheet
     $outCalendarSheet = $outputFile.Worksheets.Add()
@@ -354,25 +355,31 @@ Function Generate-DataSheet {
     $daysRange.Value2 = $dates2D  
     $daysRange.Interior.Color = 0xD5E2FB
 
-    Extract-EmployeeDetails -CalendarDays $calendarDays -LastRow $lastUsedRow -DataString $dataString -workbook $outputFile
+    Populate-Calendar -CalendarDays $calendarDays -LastRow $lastUsedRow -DataString $dataString -workbook $outputFile
 
     $excel.ActiveWindow.DisplayGridlines = $false
     $outDataSheet.Protect() | Out-Null
     $outCalendarSheet.Protect() | Out-Null
 
     ##### Save and exit files. Cleanup.
-    $outputFile.SaveAs($PWD.Path + "\extracted\$(Get-Date -Format "yyyyMMdd-HHmmss").xlsx")
+    $outputDirectory = $PSScriptRoot + "\extracted"
+    [IO.Directory]::CreateDirectory($outputDirectory) | Out-Null
+    $outputFilename = $outputDirectory + "\$(Get-Date -Format "yyyyMMdd-HHmmss").xlsx"
+    $outputFile.SaveAs($outputFilename)
     $outputFile.Close()
     $inputFile.Close()
     $excel.Quit()
 
+    Write-Host "Calendar file generated at '$outputFileName'"
     [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
-}
+}  
 
 # Main Block
 $inputFile = Get-InputFile
 if ($inputFile) {
     Generate-DataSheet -ExcelInput $inputFile
 }
+
+Write-Host "Performing cleanup..."
 [GC]::Collect()
 [GC]::WaitForPendingFinalizers()

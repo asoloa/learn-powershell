@@ -107,6 +107,7 @@ function Populate-Calendar {
 
         # Determine stored value
         if ($category -notlike "*Leave*") {
+            # [string]::Format("{0:N2}", [double]$hoursStr) → Behaves the same way as below
             $valueStr = ("{0:N2}" -f [double]$hoursStr)
         }
         elseif ($category -like "*Vacation Leave*") {
@@ -182,18 +183,18 @@ function Populate-Calendar {
     $range.VerticalAlignment   = -4108   # xlCenter
 
     # Format rows based on type: 0 = spacer/blank, 1 = header, 2 = project row
-    for ($rw = 0; $rw -lt $totalRows; $rw++) {
-        switch ($rowType[$rw]) {
+    for ($row = 0; $row -lt $totalRows; $row++) {
+        switch ($rowType[$row]) {
             1 {  # EMPLOYEE HEADER
-                $cell = $cellStart.Offset($rw, 0)
-                $label = $outputArr[$rw, 0]
+                $cell = $cellStart.Offset($row, 0)
+                $label = $outputArr[$row, 0]
                 $cell.Value = (Get-Culture).TextInfo.ToTitleCase($label.ToLower())
                 $cell.IndentLevel = 1
                 $cell.Font.Bold = $true
                 $cell.Resize(1, ($calendarDays + 1)).Interior.Color = 0x00FBEDCA
             }
             2 {  # PROJECT ROW
-                $cellStart.Offset($rw, 0).IndentLevel = 3
+                $cellStart.Offset($row, 0).IndentLevel = 3
             }
         }
     }

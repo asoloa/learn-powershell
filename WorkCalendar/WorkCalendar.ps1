@@ -1,6 +1,17 @@
 ﻿# StrictMode for development only
 # Set-StrictMode -Version Latest
 
+param(
+    [Parameter()]
+    [int]$VLColor = 0x00FFFF, # defaults to vbYellow
+
+    [Parameter()]
+    [int]$SLColor = 0xFF00FF, # defaults to vbMagenta
+
+    [Parameter()]
+    [int]$UNKColor = 0xFFFF00, # defaults to vbCyan
+)
+
 Add-Type -AssemblyName System.Windows.Forms
 
 Function Get-InputFile {
@@ -222,9 +233,9 @@ function Set-LeaveFormatting {
     $fc3 = $rng.FormatConditions.Add(1, 3, "UNK")
 
     # Set interior colors
-    $fc1.Interior.Color = 0x00FFFF  # vbYellow
-    $fc2.Interior.Color = 0xFF00FF  # vbMagenta
-    $fc3.Interior.Color = 0xFFFF00  # vbCyan
+    $fc1.Interior.Color = $VLColor
+    $fc2.Interior.Color = $SLColor
+    $fc3.Interior.Color = $UNKColor
 }
 
 # Convert a column index (1-based) to Excel letters

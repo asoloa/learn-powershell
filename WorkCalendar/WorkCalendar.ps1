@@ -1,18 +1,84 @@
 ﻿# StrictMode for development only
 # Set-StrictMode -Version Latest
-
 param(
     [Parameter()]
-    [int]$VLColor = 0x00FFFF, # defaults to vbYellow
+    [object]$VLColor = "#FFFF00",   # defaults to yellow
 
     [Parameter()]
-    [int]$SLColor = 0xFF00FF, # defaults to vbMagenta
+    [object]$SLColor = "#FF00FF",   # defaults to magenta
 
     [Parameter()]
-    [int]$UNKColor = 0xFFFF00, # defaults to vbCyan
+    [object]$UNKColor = "#00FFFF",  # defaults to cyan
+
+    [Parameter()]
+    [switch]$Help
 )
 
+if ($Help) {
+    Write-Host @'
+Usage:
+    .\WorkCalendar.ps1 [-VLColor  "RRGGBB" | 0xRRGGBB | decimal] 
+                       [-SLColor  "RRGGBB" | 0xRRGGBB | decimal] 
+                       [-UNKColor "RRGGBB" | 0xRRGGBB | decimal]
+                       [-Help]
+
+Description:
+    VLColor  - Optional. Color in RGB format for Vacation Leaves. (default "#FFFF00")
+    SLColor  - Optional. Color in RGB format for Sick Leaves  (default "#FF00FF")
+    UNKColor - Optional. Color in RGB format for Unknown Leaves  (default "#00FFFF")
+        VLColor, SLColor, UNKColor accept RGB string, hex literal, and decimal values.
+
+Examples:
+    .\WorkCalendar.ps1 -VLColor "#FFAA00" -SLColor 0x00FF88 -UNKColor 16711935
+    .\WorkCalendar.ps1 -Help
+'@
+    exit
+}
+
 Add-Type -AssemblyName System.Windows.Forms
+
+# Convert any supported input to integer RGB
+function Convert-ToRGBInt {
+    param([object]$Color)
+
+    if ($null -eq $Color) { throw "Color value cannot be null" }
+
+    # Case 1: 0xRRGGBB | #RRGGBB | RRGGBB string
+    if ($Color -is [string] -and ($Color -match '^#([0-9A-Fa-f]{6})$' -or $Color -match '^0x([0-9A-Fa-f]{6})$' -or $Color -match '^([0-9A-Fa-f]{6})$')) {
+        # In PowerShell, $matches[0] holds the entire matched string. eg. "#00FFFF"
+        return [Convert]::ToInt32($matches[1], 16)
+    }
+
+    # Case 2: Hex literal (0xRRGGBB) or numeric
+    if ($Color -is [int] -or $Color -is [long]) {
+        return [int]$Color
+    }
+
+    # Case 3: Numeric string
+    if ($Color -is [string] -and $Color -match '^\d+$') {
+        return [int]$Color
+    }
+
+    throw "Unsupported color format: '$Color'. Use '#RRGGBB', 0xRRGGBB, or integer."
+}
+
+# Convert integer RGB to Excel BGR
+function Convert-RGBToBGR {
+    param([int]$RGB)
+
+    # Mask values according to their position, then shift to make their new values within the 0-255 (1 byte) range.
+    $R = ($RGB -band 0xFF0000) -shr 16
+    $G = ($RGB -band 0x00FF00) -shr 8
+    $B = ($RGB -band 0x0000FF)
+
+    # Shift to make Blue the MSB, Red the LSB, and Green sitting at the middle, which sets the values in BGR format.
+    return ($B -shl 16) -bor ($G -shl 8) -bor $R
+}
+
+# Convert to Excel BGR format
+$VLColor  = Convert-RGBToBGR (Convert-ToRGBInt $VLColor)
+$SLColor  = Convert-RGBToBGR (Convert-ToRGBInt $SLColor)
+$UNKColor = Convert-RGBToBGR (Convert-ToRGBInt $UNKColor)
 
 Function Get-InputFile {
     # Create an instance of the OpenFileDialog class
